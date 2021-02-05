@@ -1,28 +1,20 @@
-# CDP (클라우데라 데이터 플랫폼)
-
-## CDP 설치를 위한 사전준비
-
-adm1, edge, hdm[1-2], hdw[1-4]  총 8개의 노드 준비 (CentOS)
-
-
-
-#### DNS 구조 변경
-
-------
+# DNS 설정
 
 Master : adm1
 
 Slave : edge
 
-##### hostname 변경 및 고정 IP 설정
+#### hostname 변경 및 고정 IP 설정
 
-- hostname 변경
+---
+
+- ##### hostname 변경
 
   ```bash
   hostnamectl set-hostname 변경할호스트명 # 영구 변경, 리부팅 후 적용
   ```
 
-- 고정 IP 설정
+- ##### 고정 IP 설정
 
   ```shell
   vim /etc/sysconfig/network-scripts/ifcfg-eth0
@@ -185,39 +177,41 @@ _kpasswd._udp                    SRV  0         0       464   adm1.도메인
 
 ------
 
-- master에서만 작성
+- ##### master에서만 작성
 
-##### vim /var/named/도메인.rev.zone
+  ```
+  vim /var/named/도메인.rev.zone
+  ```
 
-```shell
-$TTL 6H
-@   IN  SOA adm1.도메인. adm1.도메인. (
-                                            2020041423 ; serial
-                                            1D ; refresh
-                                            1H ; retry
-                                            1W ; expire
-                                            3H ) ; minimum
-    IN  NS  adm1.도메인.
-    IN  NS  edge.도메인.
- 
-; IP-Domain mapping here
-231 IN  PTR adm1.도메인.
-232 IN  PTR edge.도메인.
-233 IN  PTR hdm1 도메인.
-234 IN  PTR hdm2.도메인.
-235 IN  PTR hdw1.도메인.
-236 IN  PTR hdw2.도메인.
-237 IN  PTR hdw3.도메인.
-238 IN  PTR hdw4.도메인.
-```
+  ```bash
+  $TTL 6H
+  @   IN  SOA adm1.도메인. adm1.도메인. (
+                                              2020041423 ; serial
+                                              1D ; refresh
+                                              1H ; retry
+                                              1W ; expire
+                                              3H ) ; minimum
+      IN  NS  adm1.도메인.
+      IN  NS  edge.도메인.
+   
+  ; IP-Domain mapping here
+  231 IN  PTR adm1.도메인.
+  232 IN  PTR edge.도메인.
+  233 IN  PTR hdm1 도메인.
+  234 IN  PTR hdm2.도메인.
+  235 IN  PTR hdw1.도메인.
+  236 IN  PTR hdw2.도메인.
+  237 IN  PTR hdw3.도메인.
+  238 IN  PTR hdw4.도메인.
+  ```
 
-
+  
 
 #### zone 파일 권한 수정
 
 ------
 
-```shell
+```bash
 chown named:root /var/named/도메인.zone
 chown named:root /var/named/도메인.rev.zone
 ```
@@ -228,7 +222,7 @@ chown named:root /var/named/도메인.rev.zone
 
 ------
 
-- master, slave 모두 수행
+- ##### master, slave 모두 수행
 
   ```shell
   systemctl enable named
@@ -251,7 +245,7 @@ DNS2="Slave IP"
 ...
 ```
 
-###### 네트워크 재시작
+##### 네트워크 재시작
 
 ```shell
 systemctl restart network
