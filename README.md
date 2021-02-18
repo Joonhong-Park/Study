@@ -22,13 +22,13 @@ Test Installation Layout
 
 
 
-1. DNS 설정
-2. SSH 키 교환
-3. Kerberos 설치 ( 사용할 경우 )
-4. LDAP 설치 ( 사용할 경우 )
-5. NTP 설정
-6. JDK 설치
-7. Prerequisites check를 위한 설정
-8. Prerequisites check
-9. Cloudera Manager 설치
-10. PostgreSQL 설치
+1. [DNS 설정](https://github.com/Joonhong-Park/Study/blob/main/1_1CDP_DNS.md)
+2. [SSH 키 교환](https://github.com/Joonhong-Park/Study/blob/main/1_2%20Key_exchange.md)
+3. [Kerberos 설치](https://github.com/Joonhong-Park/Study/blob/main/1_3%20CDP_Kerberos.md) ( 사용할 경우 )
+4. [LDAP 설치](https://github.com/Joonhong-Park/Study/blob/main/1_4%20CDP_LDAP.md) ( 사용할 경우 )
+5. [NTP 설정](https://github.com/Joonhong-Park/Study/blob/main/1_5%20CDP_NTP.md)
+6. [JDK 설치](https://github.com/Joonhong-Park/Study/blob/main/1_6%20CDP_JDK.md)
+7. [Prerequisites check를 위한 설정](https://github.com/Joonhong-Park/Study/blob/main/1_7%20CDP_Setting%20for%20Prerequisites%20check.md)
+8. [Prerequisites check](https://github.com/Joonhong-Park/Study/blob/main/1_8%20CDP_Prerequisites%20check.md)
+9. [PostgreSQL 설치](https://github.com/Joonhong-Park/Study/blob/main/1_9%20CDP_PostgreSQL.md)
+10. [Cloudera Product 설치](https://github.com/Joonhong-Park/Study/blob/main/1_10%20CDP_Cloudera%20Product%20Install.md)
