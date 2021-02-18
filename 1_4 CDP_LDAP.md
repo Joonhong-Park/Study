@@ -1,31 +1,29 @@
-LDAP
+# LDAP
 
-TCP/IP 위에서 디렉터리 서비스를 조회하고 수정하는 응용 프로토콜
+#### TCP/IP 위에서 디렉터리 서비스를 조회하고 수정하는 응용 프로토콜
 
+##### (Ranger LDAP 설정 시 필요하므로 구성도를 기록해둘 것)
 
+> DC : 도메인 컴포넌트, 도메인 주소의 일부
+>
+> OU : 부서명, 그룹단위
+>
+> SN : 사람의 성
+>
+> UID :  유저아이디,  사람의 고유 아이디
+>
+> DN : 사람 한명을 식별할 수 있는 이름 
 
-DC : 도메인 컴포넌트, 도메인 주소의 일부
+######  작은 단위부터 작성
 
-OU : 부서명, 그룹단위
-
-SN : 사람의 성
-
-UID :  유저아이디,  사람의 고유 아이디
-
-DN : 사람 한명을 식별할 수 있는 이름 
-
-
-
- 작은 단위부터 작성
-
-dn: uid=jhpark,ou=People,ou=Developer,dc=datadynamics,dc=io
+​	dn: uid=jhpark,ou=People,ou=Developer,dc=datadynamics,dc=io
 
 
 
-OpenLdap 설치
+#### OpenLdap 설치 (adm1에만 설치함)
 
 ```bash
-yum install -y openldap
+yum install -y openldap-servers openldap-clients
 ```
 
 ```bash
@@ -35,102 +33,128 @@ systemctl start slapd
 systemctl enable slapd
 ```
 
-패스워드 등록
+
+
+#### 패스워드 등록
 
 ```bash
 slappasswd
 
-{SSHA}xxxxxxxx # 기록해둘것
+{SSHA}WHcFSXAFQRTqZRsrE2OOImgoDfNmB2nc # 기록해둘것
 ```
 
-도메인 환경설정 파일 생성
 
-vim /etc/openldap/domain.ldif
 
-```bash
+#### Ldap구조 정의 및 업데이트
+
+##### vim db.ldif
+
+```
 dn: olcDatabase={2}hdb,cn=config
 changetype: modify
 replace: olcSuffix
-olcSuffix: dc=dd,dc=io    #dc 설정 ( dd.io ) 
-
-dn: olcDatabase={2}hdb,cn=config               
+olcSuffix: dc=datadynamics,dc=io
+ 
+dn: olcDatabase={2}hdb,cn=config
 changetype: modify
 replace: olcRootDN
-olcRootDN: cn=ldaproot,dc=dd,dc=io # dc 설정 ( Manager계정 = ldaproot ) 
-
+olcRootDN: cn=ldaproot,dc=datadynamics,dc=io
+ 
 dn: olcDatabase={2}hdb,cn=config
-changetype: modify               // 원본 설정 수정 선언
-replace: olcRootPW               // RootPW 설정 선언
-olcRootPW: {SSHA}xxxxxxxxxxx #slappassword 에서 만든 패스워드 값 
+changetype: modify
+replace: olcRootPW
+olcRootPW: {SSHA}WHcFSXAFQRTqZRsrE2OOImgoDfNmB2nc
 ```
 
-- 환경설정파일에 해당 내용 업로드
-
-  ```bash
-  ldapmodify -H ldapi:/// -f domain.ldif
-  ```
-
-  ldif 파일에는 공백이 없어야 함
-
-  
-
-  Ldap 모니터링을 관리자만 볼 수 있도록 설정
-
-  ```bash
-  dn: olcDatabase={1}monitor,cn=config
-  changetype: modify
-  replace: olcAccess
-  olcAccess: {0}to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth" read by dn.base="cn=ldaproot,dc=dd,dc=io" read by * none
-  ```
-
-  
-
-USER DB 설정
+###### ldap server에 update
 
 ```bash
-# ldapuser 디렉토리 설정 템플릿 복사
+ldapmodify -Y EXTERNAL -H ldapi:/// -f db.ldif
+
+# modifying이 되지않을 시 ldif파일에 공백이 있는지 확인해볼 것
+```
+
+
+
+#### 모니터 접속 계정 설정
+
+**vim monitor.ldif**
+
+```
+dn: olcDatabase={1}monitor,cn=config
+changetype: modify
+replace: olcAccess
+olcAccess: {0}to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth" read by dn.base="cn=ldaproot,dc=datadynamics,dc=io" read by * none
+```
+
+###### ldap server에 update
+
+```
+ldapmodify -Y EXTERNAL -H ldapi:/// -f monitor.ldif
+```
+
+
+
+#### LDAP DB 설정
+
+```
 cp /usr/share/openldap-servers/DB_CONFIG.example /var/lib/ldap/DB_CONFIG
-
-chown -R ldap:ldap /var/lib/ldap # 해당 폴더 ldap 소유 변경
+chown ldap:ldap /var/lib/ldap/DB_CONFIG
 ```
 
 
 
-기본 디렉토리 DB 구조 추가
+#### LDAP 스키마 적용
 
 ```
-ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldifSASL/EXTERNALauthentication started
-ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cnis.ldif
-ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetOrgPerson
+ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif;ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif;ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
 ```
 
 
 
-각 부서(디렉토리) 구분 스키마 업데이트
-
-vim 
+#### 도메인 정보 변경
 
 ```
-dn: dc=dd,dc=io
-dc: dd
+dn: dc=datadynamics,dc=io
+dc: datadynamics
 objectClass: top
 objectClass: domain
-
-dn: cn=ldaproot,dc=dd,dc=io
+ 
+dn: cn=ldaproot,dc=datadynamics,dc=io
 objectClass: organizationalRole
 cn: ldaproot
 description: LDAP Manager
-
-dn: ou=hq,dc=dd,dc=io
+ 
+dn: ou=People,dc=datadynamics,dc=io
 objectClass: organizationalUnit
-ou:hq
-
-dn: ou=Group,dc=dd,dc=io
+ou: People
+ 
+dn: ou=Group,dc=datadynamics,dc=io
 objectClass: organizationalUnit
-ou:Group
+ou: Group
+```
 
-dn: ou=People,dc=dd,dc=io
-objectClass: organizationalUnit
-ou:People
+
+
+#### 디렉토리 구조 빌드
+
+```
+ldapadd -x -W -D "cn=ldaproot,dc=datadynamics,dc=io" -f base.ldif
+```
+
+
+
+#### 계정생성
+
+```
+
+```
+
+
+
+#### 계정조회
+
+```
+
 ```
 

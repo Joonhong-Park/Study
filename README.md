@@ -1,4 +1,8 @@
-# CDP 설치
+# 0. Hadoop & Spark
+
+
+
+# 1. CDP Install
 
 설치 전에 앞서..
 
