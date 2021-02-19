@@ -46,10 +46,43 @@ Slave : edge
   DNS6="168.126.63.2"
   GATEWAY="xxx.x.xx.xxx" # 게이트웨이
   ```
-```
   
-  ```shell
-  systemctl restart network # 네트워크 재실행
+  적용을 위해 네트워크 재실행
+  
+  ```
+  systemctl restart network
+  ```
+  
+  
+#### 많은 VM을 하나씩 설정하기 번거로우므로 아래의 스크립트를 활용
+
+##### vim /root/set.sh
+
+```bash
+#! /bin/bash
+if [ $# -lt 2 ] ; then
+  echo "$0 <NEW_IP> <NEW_HOSTNAME>"
+  exit 1
+fi
+ 
+NEW_IP=$1
+NEW_HOSTNAME=$2
+ 
+echo "NEW_IP=${NEW_IP}"
+echo "NEW_HOSTNAME=${NEW_HOSTNAME}"
+ 
+sed -i "s/172.30.1.110/${NEW_IP}/g" /etc/sysconfig/network-scripts/ifcfg-eth1
+hostnamectl set-hostname ${NEW_HOSTNAME}
+systemctl restart network
+ 
+ping -c 1 google.com
+cat /etc/resolv.conf
+```
+
+##### 사용방법
+
+```bash
+/root/set.sh {IP} {HOSTNAME}
 ```
 
 
