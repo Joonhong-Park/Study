@@ -18,8 +18,6 @@ cd ~/Downloads
 wget http://www.hadoop-professionals.org/download/cloudera/cdh7/prereq-checks-master.zip
 
 unzip prereq-checks-master.zip
-
-
 ```
 
 
@@ -55,7 +53,7 @@ cd ~/Downloads/prereq-checks-master/ansible
 ansible-playbook prereq-check.yml
 ```
 
-
+##### 수행 결과 확인
 
 ```
 cat out/adm1.cdp.jh.io.out

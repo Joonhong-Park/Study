@@ -59,7 +59,7 @@ host    all             all             ::1/128                 ident
 
 **vim /var/lib/pgsql/9.6/data/postgresql.conf**
 
-> 클러스터의 사이즈게 맞게 설정함. 여기에서는 small 규모의 클러스터로 구성하
+> 클러스터의 사이즈게 맞게 설정함. 여기에서는 small 규모의 클러스터로 구성하였음
 
 ```
 ...
@@ -140,5 +140,3 @@ chmod 644 /usr/share/java/postgresql-connector-java.jar
 ```
 
 
-
-### 

@@ -1,6 +1,12 @@
 # Prerequisites check PASS를 위해 필요한 설정
 
-모든 서버에서 실행함
+Cloudera Manager를 설치하기 위해서는 Prerequisites check 과정을 PASS하여야 설치가 된다.
+
+
+
+##### 밑의 설정은 모든 서버에서 다 실행하도록 한다.
+
+
 
 #### Swap 설정
 
@@ -24,6 +30,8 @@ for i in {1..8} ; do ssh IP주소${i} "echo 1 > /proc/sys/vm/swappiness" ; done
 echo "vm.overcommit_memory = 1" >> /etc/sysctl.conf
 echo 1 > /proc/sys/vm/overcommit_memory
 ```
+
+###### 한번에 수행
 
 ```bash
 for i in {1..8} ; do ssh IP주소${i} "echo "vm.overcommit_memory = 1" >> /etc/sysctl.conf" ; done
@@ -58,6 +66,8 @@ SELINUX=disabled
 SELINUXTYPE=targeted
 ```
 
+###### 수정한 파일을 다른 서버에 복사
+
 ```bash
 for i in {2..8} ; do scp /etc/selinux/config IP주소${i}:/etc/selinux ;done
 ```
@@ -66,7 +76,7 @@ for i in {2..8} ; do scp /etc/selinux/config IP주소${i}:/etc/selinux ;done
 
 #### postfix 중지
 
-###### centos에는 cups 서비스가 없음
+###### 한번에 수행 ( Centos에서는 cups 서비스가 없음 )
 
 ```bash
 for i in {1..8} ; do ssh IP주소${i} "systemctl stop cups ; systemctl disable cups ; systemctl stop postfix ; systemctl disable postfix ; systemctl stop tuned ; systemctl disable tuned" ; done
@@ -84,6 +94,8 @@ GRUB_CMDLINE_LINUX="... transparent_hugepage=never"
 ...
 ```
 
+###### 수정한 파일을 다른 서버에 복사
+
 ```bash
 for i in {2..8} ; do scp /etc/default/grub IP주소${i}:/etc/default ; done
 ```
@@ -99,6 +111,8 @@ touch /var/lock/subsys/local
 echo never > /sys/kernel/mm/*transparent_hugepage/defrag
 echo never > /sys/kernel/mm/*transparent_hugepage/enabled
 ```
+
+###### 수정한 파일을 다른서버에 복사 후 권한 수정
 
 ```bash
 for i in {2..8} ; do scp /etc/rc.d/rc.local IP주소${i}:/etc/rc.d ; done
@@ -118,6 +132,8 @@ hosts: files dns
 ...
 ```
 
+###### 수정한 파일을 다른 서버에 복사
+
 ```bash
 for i in {2..8} ; do scp /etc/nsswitch.conf IP주소${i}:/etc ; done
 ```
@@ -132,6 +148,8 @@ for i in {2..8} ; do scp /etc/nsswitch.conf IP주소${i}:/etc ; done
 multi on
 order hosts, bind
 ```
+
+###### 수정한 파일을 다른 서버에 복사
 
 ```bash
 for i in {2..8} ; do scp /etc/host.conf IP주소${i}:/etc ; done
@@ -148,6 +166,8 @@ yum install -y rng-tools
 systemctl start rngd
 ```
 
+###### 한번에 수행
+
 ```bash
 seq 1 8 | xargs -P 8 -I {} ssh IP주소{} "yum install -y rng-tools ; systemctl start rngd"
 ```
@@ -163,6 +183,8 @@ host <IP_ADDRESS>
 dig -x <IP_ADDRESS>
 nslookup <HOSTNAME>
 ```
+
+###### 한번에 수행
 
 ```bash
 seq 1 8 | xargs -P 8 -I {} ssh IP주소{} "yum install -y bind-utils"
@@ -181,6 +203,8 @@ yum install -y nscd
 systemctl enable nscd
 systemctl start nscd
 ```
+
+###### 한번에 수행
 
 ```bash
 seq 1 8 | xargs -P 8 -I {} ssh IP주소{} "yum install -y nscd ; systemctl enable nscd ; systemctl start nscd"
@@ -202,6 +226,8 @@ net.ipv6.conf.default.disable_ipv6 = 1
 net.ipv6.conf.lo.disable_ipv6 = 1
 ```
 
+###### 수정한 파일을 다른 서버에 복사
+
 ```bash
 for i in {2..8} ; do scp /etc/sysctl.conf IP주소${i}:/etc ; done
 ```
@@ -214,6 +240,8 @@ for i in {2..8} ; do scp /etc/sysctl.conf IP주소${i}:/etc ; done
 NETWORKING_IPV6=no
 IPV6INIT=no
 ```
+
+###### 수정한 파일을 다른 서버에 복사
 
 ```bash
 for i in {2..8} ; do scp /etc/sysconfig/network IP주소${i}:/etc/sysconfig ; done

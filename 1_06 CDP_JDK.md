@@ -38,3 +38,4 @@ for i in {1..8} ; do ssh IP주소${i} "export JAVA_HOME=/usr/java/default/jre/" 
 for i in {1..8} ; do ssh IP주소${i} "hostname; echo ${JAVA_HOME}" ; done
 ```
 
++ ##### export로 환경변수 설정 시 리부팅 후 초기화되므로 영구적으로 사용하고자 하면 ./bashrc 파일에 JAVA_HOME경로를 추가하면 된다.
