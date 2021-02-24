@@ -32,3 +32,18 @@ Test Installation Layout
 8. [Prerequisites check](https://github.com/Joonhong-Park/Study/blob/main/1_08%20CDP_Prerequisites%20check.md)
 9. [PostgreSQL 설치](https://github.com/Joonhong-Park/Study/blob/main/1_09%20CDP_PostgreSQL.md)
 10. [Cloudera Product 설치](https://github.com/Joonhong-Park/Study/blob/main/1_10%20CDP_Cloudera%20Product%20Install.md)
+
+
+
+# 2. 구성 변경 / 서비스 추가
+
+위에서 설치한 Cloudera Manager에서 진행함
+
+
+
+1. HDFS HA 설정
+2. YARN HA 설정
+3. Spark 추가
+4. Hive 추가
+5. Impala 추가
+6. Solr & Ranger 추가
