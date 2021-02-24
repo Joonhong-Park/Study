@@ -146,33 +146,27 @@ impala-shell -i hdw1.cdp.jh.io -d default
 
 
 
+
+
+-- 작성 중 --
+
 # Solr
 
 
 
-#### 클러스터 명 > 작업 > 서비스 추가 > Spark 선택
+#### 클러스터 명 > 작업 > 서비스 추가 > Solr 선택
 
 
 
 #### Select Dependencies
 
-YARN이 설치되어 있으면 그냥 넘어감
-
-###### YARN이 없으면 어떻게 뜨는지는 확인 안해봄, 다음에 다시 설치해볼 시간이 있으면 해볼 것
-
 
 
 #### 역할 할당 사용자 지정
 
-History Server : hdm2
-
-Gateway : edge
-
 
 
 #### 변경 내용 검토
-
-Auto-TLS disabled 시 해당 property들 공백으로 진행
 
 
 
@@ -184,29 +178,19 @@ Auto-TLS disabled 시 해당 property들 공백으로 진행
 
 
 
-#### 클러스터 명 > 작업 > 서비스 추가 > Spark 선택
+#### 클러스터 명 > 작업 > 서비스 추가 > Ranger선택
 
 
 
 #### Select Dependencies
 
-YARN이 설치되어 있으면 그냥 넘어감
-
-###### YARN이 없으면 어떻게 뜨는지는 확인 안해봄, 다음에 다시 설치해볼 시간이 있으면 해볼 것
-
 
 
 #### 역할 할당 사용자 지정
 
-History Server : hdm2
-
-Gateway : edge
-
 
 
 #### 변경 내용 검토
-
-Auto-TLS disabled 시 해당 property들 공백으로 진행
 
 
 
