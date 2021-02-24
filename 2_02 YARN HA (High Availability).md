@@ -2,7 +2,7 @@
 
 #### YARN 동작 구조
 
-![yarn_architecture](.\image\yarn_architecture.png)
+![yarn_architecture](\image\yarn_architecture.png)
 
 
 
@@ -24,4 +24,4 @@ Resource Manager : hdm1
 
 
 
-#### 완료![YARN_HA](.\image\YARN_HA.PNG)
+#### 완료![YARN_HA](\image\YARN_HA.PNG)
