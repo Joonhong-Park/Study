@@ -48,4 +48,4 @@ host 3개 모두 `/dfs/jn`으로 설정
 
 ##### HA가 설정된 후 인스턴스 목록
 
-![HDFS_HA](.\image\HDFS_HA.PNG)
+![HDFS_HA](./image/HDFS_HA.PNG)
