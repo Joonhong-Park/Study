@@ -35,7 +35,7 @@ Test Installation Layout
 
 
 
-# 2. 구성 변경 / 서비스 추가
+# 2. HA 설정 / 서비스 추가
 
 위에서 설치한 Cloudera Manager에서 진행함
 
@@ -43,7 +43,4 @@ Test Installation Layout
 
 1. HDFS HA 설정
 2. YARN HA 설정
-3. Spark 추가
-4. Hive 추가
-5. Impala 추가
-6. Solr & Ranger 추가
+3. Service 추가
