@@ -2,7 +2,7 @@
 
 ##### 최종 목표
 
-![Install Finish](./image/install_finish.png)
+![Install Finish](./image/install_finish.PNG)
 
 1. [Spark  추가](#Spark)
 2. [Hive 추가](#Hive)

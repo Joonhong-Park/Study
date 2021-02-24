@@ -41,6 +41,6 @@ Test Installation Layout
 
 
 
-1. HDFS HA 설정
-2. YARN HA 설정
-3. Service 추가
+1. [HDFS HA 설정](https://github.com/Joonhong-Park/Study/blob/main/2_01%20HDFS%20HA%20(High%20Availability).md)
+2. [YARN HA 설정](https://github.com/Joonhong-Park/Study/blob/main/2_02%20YARN%20HA%20(High%20Availability).md)
+3. [Service 추가](https://github.com/Joonhong-Park/Study/blob/main/2_03%20Service%20%EC%B6%94%EA%B0%80.md)
