@@ -140,11 +140,29 @@ HDFS dfs 의 명령어를 구현하는 java api 작성
 
   
 
-- 위에서 두번째 방법 사용시 username을 명시해주지 않아 windows username으로 접속을 시도하게 됨
+- ##### 위에서 방법 사용시 username을 명시해주지 않아 windows username으로 접속을 시도하게 되어 권한이 없는 폴더에 접근하거나 write 시도시 Permission dined가 되는 문제가 발생
 
-  이럴 경우 conf.set 으로 "hadoop.user", "username" 으로 직접 설정해주면 사용할 수는 있으나 바람직한 
+  이럴 경우 `UserGroupInformation`을 사용하여 유저명을 직접 명시해주면 됨
 
-  방법은 아님, 개인이 사용할 경우에만 활용할 것
+  하지만 바람직한 사용방법은 아니므로 개인이 사용할 경우에만 활용할 것
+
+  ```java
+  public static void main(String[] args) throws Exception{
+          UserGroupInformation ugi = UserGroupInformation.createRemoteUser("impala");
+          ugi.doAs((PrivilegedAction<Integer>) () -> {
+              try {
+                  FileSystem filesystem = getFileSystem("ernn");
+  //                ls_pattern(filesystem, new Path("/????"));
+                    ls(filesystem, "/");
+  //                makedir(filesystem, "/user/impala/test2");
+  //				  put(filesystem, "C:/Users/joonhong/Documents/ipaddr.txt", "/tmp/");
+              } catch (IOException | InterruptedException e) {
+                  e.printStackTrace();
+              }
+              return 0;
+          });
+      }
+  ```
 
   HDFS 파일 권한을 777로 변경해주면 누구든지 쓰고 읽기가 가능해지나 보안에 매우 취약해지므로 절대 쓰지 말것
 
@@ -152,65 +170,119 @@ HDFS dfs 의 명령어를 구현하는 java api 작성
 
 
 
-#### 해당 경로의 파일 목록 확인 (hdfs dfs -ls /)
+#### 해당 경로의 파일 목록 확인 (`hdfs dfs -ls /`)
 
 ```java
-	public static void ls(FileSystem fs, String input_path) throws IOException{
+ 	/**
+     * 해당 경로 파일 목록 확인
+     * @param fs getFileSystem으로 가져온 filesystem객체
+     * @param input_path 확인할 디렉토리 경로
+     * @throws IOException
+     */
+    public static void ls(FileSystem fs, String input_path) throws IOException{
 
         Path path = new Path(input_path);
         FileStatus[] files = fs.listStatus(path);
         for(FileStatus file : files){
             System.out.print(file.getPermission()+" ");
-            
-            // 심볼릭 링크 수를 세어주는 코드 필요
-            
+            // 심볼릭 링크 수를 출력해줄 코드 필요
             System.out.print("-"+file.getOwner()+" ");
             System.out.print(file.getGroup()+" ");
             System.out.print(file.getBlockSize()+" ");
-            System.out.print(file.getModificationTime()+" "); // 시간 변환 방법 찾아볼 것
+            System.out.print(file.getModificationTime()+" "); // 시간 출력 방법 변경 필요
             System.out.println("/"+file.getPath().getName()+" ");
         }
-    }
-
-	public static void main(String[] args) throws Exception{
-        FileSystem filesystem = getFileSystem();
-		
-        ls(filesystem, "/");
     }
 ```
 
 
 
-#### 정규식 패턴을 읽어 해당 경로의 파일 목록 확인 (hdfs dfs -ls /*)
+#### 정규식 패턴을 읽어 해당 경로의 파일 목록 확인 (`hdfs dfs -ls /*`)
 
 ```java
-	public static void ls_pattern(FileSystem fs, Path path) throws IOException{
+	/**
+     * 패턴을 사용한 해당 경로 파일 목록 확인
+     * @param fs getFileSystem으로 가져온 filesystem객체
+     * @param path 패턴이 적용된 경로
+     * @throws IOException
+     */
+    public static void ls_pattern(FileSystem fs, Path path) throws IOException{
         FileStatus[] fileStatus = fs.globStatus(path);
         for (FileStatus file : fileStatus){
             System.out.println(file);
         }
     }
-
-	public static void main(String[] args) throws Exception{
-        FileSystem filesystem = getFileSystem();
-
-        ls_pattern(filesystem, new Path("/????"));
-		// ls_pattern(filesystem, new Path("/*"));
-    }
 ```
 
 
 
-#### 해당 경로 디렉토리 생성 (hdfs dfs -mkdir)
+#### 해당 경로 디렉토리 생성 (`hdfs dfs -mkdir <dirsrc>`)
 
 ```java
-	public static void makedir(FileSystem fs, String path) throws IOException{
+	/**
+     * 해당 경로 디렉토리 생성
+     * @param fs getFileSystem으로 가져온 filesystem객체
+     * @param path 생성할 디렉토리 경로
+     * @throws IOException
+     */
+    public static void makedir(FileSystem fs, String path) throws IOException{
         fs.mkdirs(new Path(path));
     }
+```
 
-	public static void main(String[] args) throws Exception{
-        FileSystem filesystem = getFileSystem();
-        makedir(filesystem, "/user/impala/test2");
+
+
+#### 로컬 파일을 HDFS 디렉토리로 복사 (`hdfs dfs -put <src> <dirsrc>`)
+
+```java
+	/**
+     * 파일 복사
+     * @param fs getFileSystem으로 가져온 filesystem객체
+     * @param file_path 복사할 파일 경로
+     * @param dir_path 붙여넣을 디렉토리 경로
+     * @throws IOException
+     */
+    public static void put(FileSystem fs, String file_path, String dir_path) throws IOException{
+        fs.copyFromLocalFile(new Path(file_path), new Path(dir_path));
     }
 ```
+
+
+
+#### HDFS 파일을 로컬 디렉토리로 복사(`dhfs dfs -cp <src> <dirsrc>`)
+
+```java
+	/**
+     * 
+     * @param fs getFileSystem으로 가져온 filesystem객체
+     * @param file_path 복사할 파일 경로
+     * @param dir_path 붙여넣을 로컬 디렉토리 경로
+     * @throws IOException
+     */
+    public static void cp(FileSystem fs, String file_path, String dir_path) throws IOException{
+        fs.copyToLocalFile(new Path(file_path), new Path(dir_path));
+
+    }
+```
+
+
+
+#### HDFS에서 파일을 읽어 내용 출력 (`hdfs dfs -cat <filepath>`)
+
+```java
+	/**
+     * hdfs 파일을 읽어 내용 출력
+     * @param fs getFileSystem으로 가져온 filesystem객체
+     * @param file_path 읽을 파일 경로
+     * @throws IOException
+     */
+    public static void cat(FileSystem fs, String file_path) throws IOException{
+        FSDataInputStream is = fs.open(new Path(file_path));
+        IOUtils.copyBytes(is, System.out, 4096, false);
+        IOUtils.closeStream(is);
+
+    }
+```
+
+
 
