@@ -10,7 +10,7 @@ HDFS의 파일을 HIVE를 통해 저장 및 조회하는 것을 목표로 함
 
 ##### 로컬에 있는 chat.log들을 hdfs의 /hive/chat으로 복사
 
-![hive_put](./image/hive_put.png)
+![hive_put](./image/hive_put.PNG)
 
 
 

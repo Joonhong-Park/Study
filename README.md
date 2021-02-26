@@ -44,3 +44,13 @@ Test Installation Layout
 1. [HDFS HA 설정](https://github.com/Joonhong-Park/Study/blob/main/2_01%20HDFS%20HA%20(High%20Availability).md)
 2. [YARN HA 설정](https://github.com/Joonhong-Park/Study/blob/main/2_02%20YARN%20HA%20(High%20Availability).md)
 3. [Service 추가](https://github.com/Joonhong-Park/Study/blob/main/2_03%20Service%20%EC%B6%94%EA%B0%80.md)
+
+
+
+# 3. HDFS
+
+
+
+1. [HDFS JAVA API](https://github.com/Joonhong-Park/Study/blob/main/3_01%20HDFS%20JAVA%20API.md)
+2. [HDFS Federation](https://github.com/Joonhong-Park/Study/blob/main/3_02%20HDFS%20Federation.md)
+3. [HIVE CLI](https://github.com/Joonhong-Park/Study/blob/main/3_03%20HIVE%20CLI.md)
