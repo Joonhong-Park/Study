@@ -11,15 +11,118 @@ Map + Reduce 두 단계로 데이터를 처리
 
 
 
-MR 작업을 위해 필요한 3가지 Class
+## MR Class 구성 및 작동 순서
 
-1. Map 
-2. Reduce
-3. Driver : Map, Reduce를 실행시켜줄 main함수가 작성된 곳
-
-
+1. Mapper : 데이터를 <k,v>쌍으로 묶음
+2. Combiner : <k,v>데이터를 key별로 묶어 Reducer로 전송, mini - reducer 라고도 함
+3. Partitioner : key-value 페어를 일련의 로직으로 분배, Default = key의 HashCode
+4. Reducer : 같은 Key로 모인 데이터를 일련의 로직으로 줄이는 작업, key는 정렬되어있으며 default 정렬 알고리즘은 quick sort임
+5. Driver : 위의 작업들로 Job을 설정, Resource Manager로 Job을 제출함
 
 ![](./image/mapreduce.PNG)
+
+목적에 맞게 작업들은 유동적으로 구성할 수 있음
+
+>mapper -> driver
+>
+>mapper -> reducer -> driver
+>
+>mapper -> combiner -> driver
+>
+>mapper -> combiner -> reducer -> driver
+>
+>mapper -> combiner -> partitioner -> reducer -> driver
+
+
+
+## WordCount
+
+맵리듀스의 가장 기본 예제, C의 hello world와 같은 내용
+
+
+
+#### WordCountMapper
+
+FIle을 한줄씩 읽어와 Delimiter로 분할, 분할된 word를 <key,1>로 묶어 주는 역할을 함
+
+상속받는 Mapper< ... >와 map( ... )의 I/O key,value 들은 형을 일치 시켜줘야함
+
+```java
+package jh.hadoop.mapreduce.sample;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+import java.io.IOException;
+
+public class WordCountMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
+
+    private String delimiter;
+
+    @Override
+    protected void setup(Context context) throws IOException, InterruptedException {
+        Configuration configuration = context.getConfiguration();
+        delimiter = configuration.get("delimiter", ",");
+    }
+
+    @Override
+    protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+        String row = value.toString();
+        String[] columns = row.split(delimiter);
+        for (String word : columns) {
+            context.write(new Text(word), new IntWritable(1));
+        }
+    }
+
+    @Override
+    protected void cleanup(Context context) throws IOException, InterruptedException {
+    }
+}
+```
+
+
+
+### WordCountReducer
+
+Mapper에서 보낸 output key, value가 reducer의 input key,value가 됨
+
+이때 input values는 key별로 묶인 value들의 배열로 입력받음
+
+```
+package jh.hadoop.mapreduce.sample;
+
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+import java.io.IOException;
+import java.util.Iterator;
+
+public class WordCountReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+
+    @Override
+    protected void setup(Context context) throws IOException, InterruptedException {
+    }
+
+    @Override
+    protected void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+        Iterator<IntWritable> iterator = values.iterator();
+        int sum = 0;
+        while (iterator.hasNext()) {
+            IntWritable one = iterator.next();
+            sum += one.get();
+        }
+        context.write(key, new IntWritable(sum));
+    }
+
+    @Override
+    protected void cleanup(Context context) throws IOException, InterruptedException {
+    }
+}
+```
 
 
 
