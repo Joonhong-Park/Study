@@ -527,11 +527,11 @@ https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
 
 
-#### DataFrame 객체 생성
+#### DataFrame 생성
 
 - ##### spark-shell에서 생성
 
-  1. ###### 배열 RDD  --> DataFrame 
+  1. ###### 배열 RDD  -> DataFrame 
 
      ```scala
      // 위에서 만든 disData RDD 객체 사용
@@ -686,9 +686,114 @@ https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
 
 
+#### Dataset 생성
 
+- ##### spark-shell에서 생성
 
+  1. ###### 내부 데이터 이용
 
+     ```
+     val coffeeData = Seq(("Americano", 4300),
+     ("CafeLatte", 5300),
+     ("CafeMocha", 5800))
+     
+     val coffeeDS = coffeeData.toDS()
+     
+     coffeeDS.show()
+     
+     coffeeDS.select("_1").show()
+     ```
+
+     ![](./image/dataset_1.PNG)
+
+     
+
+  2. ###### case class 이용
+
+     case class를 이용하면 칼럼명을 이용하여 데이터 조회가 가능
+
+     ```scala
+     case class Coffee(menu: String, price: Int)
+     
+     val coffeeData = Seq(Coffee("Americano", 4300),
+     Coffee("CafeLatte", 5300),
+     Coffee("CafeMocha", 5800))
+     
+     val coffeeDS = coffeeData.toDS()
+     
+     coffeeDS.show()
+     
+     coffeeDS.select("price").show()
+     ```
+
+     ![](./image/dataset_2.PNG)
+
+     
+
+  3. RDD -> Dataset
+
+     RDD를 Dataset으로 변환하기 위해서는 DataFrame으로 변경 후 Dataet으로 변경해야 함
+
+     
+
+     - RDD -> DataFrame
+
+       ```scala
+       import org.apache.spark.sql._
+       import org.apache.spark.sql.types._
+       
+       var flightData = sc.textFile("/user/root/flightdata/*.csv")
+       
+       // CSV파일을 RDD로 Read시 Header만 Skip하는 방법은 따로 없음
+       // Read 후 Header에 해당하는 부분을 제거해주는 작업이 필요함
+       var flightRDD = flightData.mapPartitionsWithIndex {(idx, iter) => if (idx == 0) iter.drop (1) else iter}
+       
+       // DataFrame 생성시 사용할 Schema 선언
+       val flightSchema = new StructType().
+       add(StructField("DEST_COUNTRY_NAME",StringType,true)).
+       add(StructField("ORIGIN_COUNTRY_NAME",StringType,true)).
+       add(StructField("count",IntegerType,true))
+       
+       // Read한 내용을 CSV Delimiter인 ','으로 나눔
+       val sepflightRDD = flightRDD.map(line => line.split(",")).map(x => Row(x(0),x(1),x(2).trim.toInt))
+       
+       // DataFrame 생성
+       val flightDF = spark.createDataFrame(sepflightRDD, flightSchema)
+       
+       flightDF.show()
+       ```
+
+       ![](./image/dataset_3.PNG)
+
+     
+
+     - DataFrame -> Dataset
+
+       ```scala
+       case class Flight(DEST_COUNTRY_NAME: String, ORIGIN_COUNTRY_NAME: String, count: Int)
+       
+       val flightDS = flightDF.as[Flight]
+       
+       flightDS.show()
+       ```
+
+       ![](./image/dataset_4.PNG)
+
+     
+
+  4. DataFrame -> Dataset
+
+     ```
+     case class Flight(DEST_COUNTRY_NAME: String, ORIGIN_COUNTRY_NAME: String, count: Int)
+     
+     val flightDF = spark.read.option("inferSchema", true).option("header",true).csv("/user/root/flightdata/*.csv")
+     
+     val fligttDS = flightDF.as[Flight]
+     
+     flightDS.show()
+     ```
+
+     ![](./image/dataset_5.PNG)
 
 
 
