@@ -682,7 +682,20 @@ https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
 - 컴파일 단계에서 더 높은 수준의 type-safety를 확보하고 싶을 때
 
+  
+
+  - Type-Safety
+
+    사용자로 하여금 사용하는 데이터 값의 타입을 명확히 하도록 함 = 타입의 안정성 보장
+
+    데이터의 타입을 Check할 수 있어 Runtime시가 아닌 컴파일시에 에러를 찾을 수 있음
+
+
+    아래는 SQL, DF, DS에서 오류를 감지하는 단계를 나타낸 그림
+
   ![](./image/typesafety.png)
+
+  
 
 
 
@@ -801,11 +814,413 @@ https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
 ## Hadoop InputFormat 사용
 
-sparkconf = sc
+Java에서 Custom InputFormat을 이용하여 CSV File을 RDD로 읽어오는 것을 목표로함
 
-sc.hadoopRdd()
+scala와는 메소드명 등 약간의 차이가 있으나 전체적인 흐름은 같음
 
-https://knight76.tistory.com/entry/Spark-HadoopRDD
+- #### newAPIHadoopFile ( = HadoopFIle[옛버전] )
+
+  Hadoop InputFormat을 이용하여 파일을 읽기 위해서는 반드시 `JavaSparkContext객체의 newAPIHadoopFile 메소드`를 사용해야 함
+
+  또한 읽은 파일은 무조건 PairRDD<k,v>로 리턴됨
+
+> ##### Hadoop InputFormat으로 CSV파일을 읽을 때 주의할 점
+>
+> CSV에는 Header가 포함되있으므로 Int형 데이터를 담은 칼럼이여도
+>
+> 첫 라인은 반드시 String이 오게 됨.
+>
+>  Type MissMatch 오류가 발생한다면 참고해볼 것
+
+
+
+- #### InputFormat 작성
+
+  읽어 올 파일(CSV)의 구조 파악
+
+  ```
+  DEST_COUNTRY_NAME,ORIGIN_COUNTRY_NAME,count
+  United States,Romania,1
+  United States,Ireland,264
+  ```
+
+  1. ##### FlightDataWritable
+
+     ```java
+     package input;
+     import org.apache.hadoop.io.Text;
+     import org.apache.hadoop.io.WritableComparable;
+     import org.apache.hadoop.io.WritableUtils;
+     
+     import java.io.DataInput;
+     import java.io.DataOutput;
+     import java.io.IOException;
+     
+     public class FlightDataWritable implements WritableComparable<FlightDataWritable> {
+         private String DEST_COUNTRY_NAME;
+         private String ORIGIN_COUNTRY_NAME;
+         private String count;
+     
+         public FlightDataWritable(Text text){
+             String[] tokens = text.toString().split(",");
+     
+             DEST_COUNTRY_NAME = tokens[0];
+             ORIGIN_COUNTRY_NAME = tokens[1];
+             count = tokens[2];
+         }
+     
+         public String getDEST_COUNTRY_NAME() {
+             return DEST_COUNTRY_NAME;
+         }
+     
+         public String getORIGIN_COUNTRY_NAME() {
+             return ORIGIN_COUNTRY_NAME;
+         }
+     
+         public String getCount() {
+             return count;
+         }
+     
+         @Override
+         public int compareTo(FlightDataWritable o) {
+             return 0;
+         }
+     
+         @Override
+         public void write(DataOutput out) throws IOException {
+             WritableUtils.writeString(out, DEST_COUNTRY_NAME);
+             WritableUtils.writeString(out, ORIGIN_COUNTRY_NAME);
+             WritableUtils.writeString(out, count);
+     
+         }
+     
+         @Override
+         public void readFields(DataInput in) throws IOException {
+             DEST_COUNTRY_NAME = WritableUtils.readString(in);
+             ORIGIN_COUNTRY_NAME = WritableUtils.readString(in);
+             count = WritableUtils.readString(in);
+         }
+     }
+     ```
+
+     
+
+  2. ##### FlightDataRecord (RecordReader 내용을 가져와 수정)
+
+     ```java
+     package input;
+     
+     import org.apache.hadoop.conf.Configuration;
+     import org.apache.hadoop.fs.FSDataInputStream;
+     import org.apache.hadoop.fs.FutureDataInputStreamBuilder;
+     import org.apache.hadoop.fs.Path;
+     import org.apache.hadoop.fs.Seekable;
+     import org.apache.hadoop.fs.impl.FutureIOSupport;
+     import org.apache.hadoop.io.LongWritable;
+     import org.apache.hadoop.io.Text;
+     import org.apache.hadoop.io.compress.*;
+     import org.apache.hadoop.mapreduce.InputSplit;
+     import org.apache.hadoop.mapreduce.MRJobConfig;
+     import org.apache.hadoop.mapreduce.RecordReader;
+     import org.apache.hadoop.mapreduce.TaskAttemptContext;
+     import org.apache.hadoop.mapreduce.lib.input.*;
+     import org.slf4j.Logger;
+     import org.slf4j.LoggerFactory;
+     
+     import java.io.IOException;
+     
+     public class FlightDataRecord extends RecordReader<LongWritable, FlightDataWritable> {
+     
+         private static final Logger LOG = LoggerFactory.getLogger(LineRecordReader.class);
+         public static final String MAX_LINE_LENGTH = "mapreduce.input.linerecordreader.line.maxlength";
+     
+         private long start;
+         private long pos;
+         private long end;
+         private SplitLineReader in;
+         private FSDataInputStream fileIn;
+         private Seekable filePosition;
+         private int maxLineLength;
+         private LongWritable key;
+         private Text value;
+         private boolean isCompressedInput;
+         private Decompressor decompressor;
+         private byte[] recordDelimiterBytes;
+     
+         @Override
+         public void initialize(InputSplit genericSplit, TaskAttemptContext context) throws IOException, InterruptedException {
+             FileSplit split = (FileSplit) genericSplit;
+             Configuration job = context.getConfiguration();
+             this.maxLineLength = job.getInt(MAX_LINE_LENGTH, Integer.MAX_VALUE);
+             start = split.getStart();
+             end = start + split.getLength();
+             final Path file = split.getPath();
+     
+             final FutureDataInputStreamBuilder builder =
+                     file.getFileSystem(job).openFile(file);
+             FutureIOSupport.propagateOptions(builder, job,
+                     MRJobConfig.INPUT_FILE_OPTION_PREFIX,
+                     MRJobConfig.INPUT_FILE_MANDATORY_PREFIX);
+             fileIn = FutureIOSupport.awaitFuture(builder.build());
+     
+             CompressionCodec codec = new CompressionCodecFactory(job).getCodec(file);
+             if (null!=codec) {
+                 isCompressedInput = true;
+                 decompressor = CodecPool.getDecompressor(codec);
+                 if (codec instanceof SplittableCompressionCodec) {
+                     final SplitCompressionInputStream cIn =
+                             ((SplittableCompressionCodec)codec).createInputStream(
+                                     fileIn, decompressor, start, end,
+                                     SplittableCompressionCodec.READ_MODE.BYBLOCK);
+                     in = new CompressedSplitLineReader(cIn, job,
+                             this.recordDelimiterBytes);
+                     start = cIn.getAdjustedStart();
+                     end = cIn.getAdjustedEnd();
+                     filePosition = cIn;
+                 } else {
+                     if (start != 0) {
+                         throw new IOException("Cannot seek in " +
+                                 codec.getClass().getSimpleName() + " compressed stream");
+                     }
+     
+                     in = new SplitLineReader(codec.createInputStream(fileIn,
+                             decompressor), job, this.recordDelimiterBytes);
+                     filePosition = fileIn;
+                 }
+             } else {
+                 fileIn.seek(start);
+                 in = new UncompressedSplitLineReader(
+                         fileIn, job, this.recordDelimiterBytes, split.getLength());
+                 filePosition = fileIn;
+             }
+             if (start != 0) {
+                 start += in.readLine(new Text(), 0, maxBytesToConsume(start));
+             }
+             this.pos = start;
+         }
+     
+         private int maxBytesToConsume(long pos) {
+             return isCompressedInput
+                     ? Integer.MAX_VALUE
+                     : (int) Math.max(Math.min(Integer.MAX_VALUE, end - pos), maxLineLength);
+         }
+     
+         private long getFilePosition() throws IOException {
+             return isCompressedInput && null != filePosition ? filePosition.getPos() : pos;
+         }
+     
+         private int skipUtfByteOrderMark() throws IOException {
+     
+             int newMaxLineLength = (int) Math.min(3L + (long) maxLineLength,
+                     Integer.MAX_VALUE);
+             int newSize = in.readLine(value, newMaxLineLength, maxBytesToConsume(pos));
+             pos += newSize;
+             int textLength = value.getLength();
+             byte[] textBytes = value.getBytes();
+             if ((textLength >= 3) && (textBytes[0] == (byte)0xEF) &&
+                     (textBytes[1] == (byte)0xBB) && (textBytes[2] == (byte)0xBF)) {
+                 // find UTF-8 BOM, strip it.
+                 LOG.info("Found UTF-8 BOM and skipped it");
+                 textLength -= 3;
+                 newSize -= 3;
+                 if (textLength > 0) {
+                     // It may work to use the same buffer and not do the copyBytes
+                     textBytes = value.copyBytes();
+                     value.set(textBytes, 3, textLength);
+                 } else {
+                     value.clear();
+                 }
+             }
+             return newSize;
+         }
+     
+         @Override
+         public boolean nextKeyValue() throws IOException {
+             if (key == null) {
+                 key = new LongWritable();
+             }
+             key.set(pos);
+             if (value == null) {
+                 value = new Text();
+             }
+             int newSize = 0;
+             // We always read one extra line, which lies outside the upper
+             // split limit i.e. (end - 1)
+             while (getFilePosition() <= end || in.needAdditionalRecordAfterSplit()) {
+                 if (pos == 0) {
+                     newSize = skipUtfByteOrderMark();
+                 } else {
+                     newSize = in.readLine(value, maxLineLength, maxBytesToConsume(pos));
+                     pos += newSize;
+                 }
+     
+                 if ((newSize == 0) || (newSize < maxLineLength)) {
+                     break;
+                 }
+     
+                 // line too long. try again
+                 LOG.info("Skipped line of size " + newSize + " at pos " +
+                         (pos - newSize));
+             }
+             if (newSize == 0) {
+                 key = null;
+                 value = null;
+                 return false;
+             } else {
+                 return true;
+             }
+         }
+     
+         @Override
+         public LongWritable getCurrentKey() {
+             return key;
+         }
+     
+         @Override
+         public FlightDataWritable getCurrentValue() {
+             return new FlightDataWritable(value);
+         }
+     
+         /**
+          * Get the progress within the split
+          */
+         @Override
+         public float getProgress() throws IOException {
+             if (start == end) {
+                 return 0.0f;
+             } else {
+                 return Math.min(1.0f, (getFilePosition() - start) / (float)(end - start));
+             }
+         }
+     
+         @Override
+         public synchronized void close() throws IOException {
+             try {
+                 if (in != null) {
+                     in.close();
+                 }
+             } finally {
+                 if (decompressor != null) {
+                     CodecPool.returnDecompressor(decompressor);
+                     decompressor = null;
+                 }
+             }
+         }
+     }
+     ```
+
+     
+
+  3. ##### FlightDataInputFormat
+
+     ```java
+     package input;
+     
+     import org.apache.hadoop.io.LongWritable;
+     import org.apache.hadoop.mapreduce.InputSplit;
+     import org.apache.hadoop.mapreduce.RecordReader;
+     import org.apache.hadoop.mapreduce.TaskAttemptContext;
+     import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+     
+     import java.io.IOException;
+     
+     public class FlightDataInputFormat extends FileInputFormat<LongWritable, FlightDataWritable> {
+     
+         @Override
+         public RecordReader<LongWritable, FlightDataWritable> createRecordReader(InputSplit split, TaskAttemptContext context) throws IOException, InterruptedException {
+             return new FlightDataRecord();
+         }
+     }
+     ```
+
+  
+
+- #### 실행파일 작성 및 실행
+
+  1. ##### ReadByIF ( 실행파일:main() )
+
+     ```java
+     import input.FlightDataInputFormat;
+     import input.FlightDataWritable;
+     import org.apache.hadoop.conf.Configuration;
+     import org.apache.hadoop.io.LongWritable;
+     import org.apache.spark.SparkConf;
+     import org.apache.spark.api.java.JavaPairRDD;
+     import org.apache.spark.api.java.JavaRDD;
+     import org.apache.spark.api.java.JavaSparkContext;
+     import org.apache.spark.sql.Dataset;
+     import org.apache.spark.sql.Row;
+     import org.apache.spark.sql.SQLContext;
+     import org.apache.spark.sql.types.DataTypes;
+     import org.apache.spark.sql.types.StructType;
+     import scala.Tuple2;
+     import org.apache.spark.sql.SparkSession;
+     import org.apache.spark.sql.SQLContext;
+     
+     
+     public class ReadByIF {
+         public static void main(String[] args) throws Exception {
+     
+             if (args.length < 1) {
+                 System.err.println("Usage : ReadByIF <input file path>");
+                 System.exit(1);
+             }
+     
+             SparkConf sparkconf = new SparkConf().setMaster("yarn").setAppName("InputFormat");
+     
+             CSVtoDataFrame(sparkconf, args);
+         }
+     
+         public static void CSVtoDataFrame(SparkConf sparkconf, String[] args) throws Exception {
+             JavaSparkContext sc = new JavaSparkContext(sparkconf);
+     
+             Configuration conf = new Configuration();
+             
+             JavaPairRDD<LongWritable, FlightDataWritable> lines = sc.newAPIHadoopFile(args[0], FlightDataInputFormat.class, LongWritable.class, FlightDataWritable.class, conf);
+     
+             JavaRDD<FlightDataWritable> fulldata = lines.map(v1 -> v1._2);
+     
+     //        FlightDataWritable head = fulldata.first();
+     //
+     //        JavaRDD<FlightDataWritable> data_nohead = fulldata.filter(v1 -> v1 != head);
+     
+     //        StructType schema = new StructType();
+     //        schema.add(DataTypes.createStructField(head.getDEST_COUNTRY_NAME(), DataTypes.StringType, true));
+     //        schema.add(DataTypes.createStructField(head.getORIGIN_COUNTRY_NAME(), DataTypes.StringType, true));
+     //        schema.add(DataTypes.createStructField(head.getCount(), DataTypes.StringType, true));
+     //
+     //        SQLContext sqc = new SQLContext(sc);
+     //        Dataset<Row> df = sqc.createDataFrame();
+     
+             for (Tuple2<LongWritable, FlightDataWritable> line : lines.take(10)) {
+                 FlightDataWritable fdw = line._2;
+                 System.out.println(fdw.getORIGIN_COUNTRY_NAME() + " >> " + fdw.getDEST_COUNTRY_NAME() + " :: " + fdw.getCount());
+             }
+         }
+     }
+     ```
+
+     
+
+  2. ##### 실행
+
+     ```bash
+     spark-submit --class ReadByIF sbj.jar /user/root/flightdata/*
+     ```
+
+     ![](./image/inputformat.PNG)
+
+
+
+#### To do..
+
+읽은 RDD를 DataFrame으로 변환해하는 것도 시도중이나 잘 되지않고 있음
+
+( Custom inputformat과 Schema간에 타입을 맞춰주기가 쉽지않음..)
+
+Q1. RDD 객체 생성 단계부터 1번째 Row을 제외하고 읽는 방법이 있을까?
+
+Q2. InputFormatWritable 객체와 Schema를 어떻게 매칭시켜주지..?
 
 
 
