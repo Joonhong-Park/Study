@@ -1180,18 +1180,6 @@ scala와는 메소드명 등 약간의 차이가 있으나 전체적인 흐름�
      
              JavaRDD<FlightDataWritable> fulldata = lines.map(v1 -> v1._2);
      
-     //        FlightDataWritable head = fulldata.first();
-     //
-     //        JavaRDD<FlightDataWritable> data_nohead = fulldata.filter(v1 -> v1 != head);
-     
-     //        StructType schema = new StructType();
-     //        schema.add(DataTypes.createStructField(head.getDEST_COUNTRY_NAME(), DataTypes.StringType, true));
-     //        schema.add(DataTypes.createStructField(head.getORIGIN_COUNTRY_NAME(), DataTypes.StringType, true));
-     //        schema.add(DataTypes.createStructField(head.getCount(), DataTypes.StringType, true));
-     //
-     //        SQLContext sqc = new SQLContext(sc);
-     //        Dataset<Row> df = sqc.createDataFrame();
-     
              for (Tuple2<LongWritable, FlightDataWritable> line : lines.take(10)) {
                  FlightDataWritable fdw = line._2;
                  System.out.println(fdw.getORIGIN_COUNTRY_NAME() + " >> " + fdw.getDEST_COUNTRY_NAME() + " :: " + fdw.getCount());
@@ -1199,28 +1187,129 @@ scala와는 메소드명 등 약간의 차이가 있으나 전체적인 흐름�
          }
      }
      ```
-
      
-
+     
+     
   2. ##### 실행
-
+  
      ```bash
      spark-submit --class ReadByIF sbj.jar /user/root/flightdata/*
      ```
-
+  
      ![](./image/inputformat.PNG)
+     
+     
 
 
 
 #### To do..
 
-읽은 RDD를 DataFrame으로 변환해하는 것도 시도중이나 잘 되지않고 있음
+~~읽은 RDD를 DataFrame으로 변환해하는 것도 시도중이나 잘 되지않고 있음~~
 
-( Custom inputformat과 Schema간에 타입을 맞춰주기가 쉽지않음..)
+~~( Custom inputformat과 Schema간에 타입을 맞춰주기가 쉽지않음..)~~
+
+해결하였으며 아래의 내용대로 진행해볼 것
+
+
 
 Q1. RDD 객체 생성 단계부터 1번째 Row을 제외하고 읽는 방법이 있을까?
 
-Q2. InputFormatWritable 객체와 Schema를 어떻게 매칭시켜주지..?
+A1. RDD 정보를 가져올 방법은 collect(), take() 두 가지밖에 없음, 또한 take()는 무조건 처음부터 읽어오도록 설계되어있으므로 읽는 단계에서 Header를 제외하고 읽기는 힘들어보임
+
+​	>> 읽은 뒤 헤더 부분만 제거하는 방법으로 해결
+
+
+
+Q2. InputFormatWritable 객체와 Schema를 어떻게 매칭시켜주지?
+
+A2. PairRDD -> RDD<Row> 매핑시 Schema에 해당되는 Row객체를 리턴해주면 됨
+
+​		자세한 내용은 아래의 코드 참조
+
+```java
+public static void CSVtoDataFrame(SparkConf sparkconf, String[] args) throws Exception {
+        JavaSparkContext sc = new JavaSparkContext(sparkconf);
+
+        Configuration conf = new Configuration();
+
+        JavaPairRDD<LongWritable, FlightDataWritable> lines = sc.newAPIHadoopFile(args[0], FlightDataInputFormat.class, LongWritable.class, FlightDataWritable.class, conf);
+    
+    	// JavaRDD 객체 생성
+        JavaRDD<Row> fulldata = lines.map(v1 -> {
+            FlightDataWritable flightDataWritable = v1._2;
+            String count = flightDataWritable.getCount();
+            String dest_country_name = flightDataWritable.getDEST_COUNTRY_NAME();
+            String origin_country_name = flightDataWritable.getORIGIN_COUNTRY_NAME();
+            return new GenericRow(new Object[]{dest_country_name, origin_country_name, count});
+        });
+
+        // 헤더 정보 제거
+        Row header = fulldata.first();
+
+        /**
+         * Scala Code : var onlydata = fulldata.filter(v1 => v1 != header)
+         * Java는 !=로 값을 비교할 수 없으므로 equals()를 사용하여
+         * 아래와 같이 사용하며 주석의 내용과 같은 의미임
+         */
+
+        JavaRDD<Row> onlydata = fulldata.filter(v1 -> {
+            return !v1.equals(header);
+                });
+
+//        JavaRDD<Row> onlydata = fulldata.filter(v1 -> {
+//            if (v1.equals(header)) {
+//                return false;
+//            }else{
+//                return true;
+//            }
+//        });
+
+        StructField field1 = DataTypes.createStructField("DEST_COUNTRY_NAME", DataTypes.StringType, true);
+        StructField field2 = DataTypes.createStructField("ORIGIN_COUNTRY_NAME", DataTypes.StringType, true);
+        StructField field3 = DataTypes.createStructField("Count", DataTypes.StringType, true);
+
+        /**
+         * Schema 생성방법 1
+         */
+//        StructType schema = new StructType();
+//
+//        schema.add(field1);
+//        schema.add(field2);
+//        schema.add(field3);
+
+        /**
+         * Schema 생성방법 2
+         */
+        StructType schema = new StructType(
+                new StructField[]{
+                        field1,
+                        field2,
+                        field3
+                }
+        );
+
+        /**
+         * Schema 생성방법 3
+         * Schema 내용들을 담은 Class를 만들어 아래와 같이 DF 생성가능
+         */
+
+//        Dataset<Row> df = spark.createDataFrame(fulldata, Schema.class);
+
+    
+		// SQLContext 객체 생성 후 DF 생성
+        SQLContext spark = new SQLContext(sc);
+
+        Dataset<Row> df = spark.createDataFrame(onlydata, schema);
+
+        df.show();
+        
+//        for (Tuple2<LongWritable, FlightDataWritable> line : lines.take(10)) {
+//            FlightDataWritable fdw = line._2;
+//            System.out.println(fdw.getORIGIN_COUNTRY_NAME() + " >> " + fdw.getDEST_COUNTRY_NAME() + " :: " + fdw.getCount());
+//        }
+
+    }
+```
 
 
 
@@ -1228,7 +1317,69 @@ Q2. InputFormatWritable 객체와 Schema를 어떻게 매칭시켜주지..?
 
 SQL을 이용하여 RDD, DataSet, DataFrame 작업을 생성하고 처리
 
+- CLI
 
+  - DataFrame 생성
+
+    ```
+    var FlightDF = spark.read.option("inferSchema",true).option("header",true).csv("/user/root/flightdata/*.csv")
+    ```
+
+    
+
+  - Show()
+
+    DataFrame을 유저가 보기 좋은 view로 출력해줌
+
+    ```scala
+    // Default 최대 20개까지 보여줌
+    FlightDF.show()
+    // 직접 지정하면 20개 이하, 이상까지 볼 수 있음
+    FlightDF.show(5)
+    ```
+
+    
+
+  - printSchema()
+
+    DataFrame의 칼럼명과 데이터 타입을 출력해줌
+
+    ```
+    FlightDF.printSchema()
+    ```
+
+    
+
+  - filter()
+    SQL의 where절과 같은 역할
+
+    
+
+    
+
+    
+
+    
+
+    ```
+    
+    ```
+
+    
+
+  - where()
+
+  - count()
+
+  - collect()
+
+  - group by()
+
+  - join()
+
+  - 
+
+- API
 
 
 
